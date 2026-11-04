@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WBC-MPC: Whole-Body Nonlinear MPC with Contact-Consistent Whole-Body Control</title>
+<meta name="description" content="Whole-body nonlinear MPC on the full rigid-body dynamics, executed by a contact-consistent whole-body controller on the measured state. Unitree G1 in MuJoCo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+<style>
+:root {
+  --bg: #000; --ink: #f5f5f7; --ink2: #a1a1a6; --muted: #6e6e73; --line: #2a2a2d; --card: #111113;
+  --accent: #2997ff; --violet: #8f6bff; --pink: #ff6ec7; --green: #30d158; --orange: #ff9f0a; --red: #ff453a;
+  --grad: linear-gradient(90deg, #2997ff 0%, #8f6bff 55%, #ff6ec7 100%);
+  --maxw: 1000px; --nav: 48px; --g: clamp(18px, 2.2vw, 32px);
+  --display: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: var(--bg); scroll-padding-top: calc(var(--nav) + 20px); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+sup a { color: var(--muted); font-size: 0.62em; margin-left: 2px; }
+.grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 0.06em; }
+.w { color: var(--ink); font-weight: 600; }
+.tbd { color: var(--orange); font-weight: 600; }
+
+/* nav */
+.topnav { position: fixed; top: 0; left: 0; right: 0; z-index: 30; height: var(--nav); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--g); border-bottom: 1px solid #1d1d1f; }
+.topnav::before { content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.72); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+.brand { font-family: var(--display); font-weight: 700; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
+.brand:hover { text-decoration: none; }
+.navright { display: flex; align-items: center; gap: 36px; }
+.navlinks { display: flex; gap: 28px; font-size: 13px; }
+.navlinks a { color: var(--ink2); transition: color 0.25s ease; }
+.navlinks a:hover, .navlinks a.on { color: var(--ink); text-decoration: none; }
+.navcta { display: flex; gap: 10px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 14px; border: 1px solid #48484a; border-radius: 980px; font: 500 13px/1 "Inter", sans-serif; color: var(--ink) !important; background: none; cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease; }
+.pill:hover { text-decoration: none; border-color: #6e6e73; }
+.pill.solid { background: var(--accent); border-color: var(--accent); }
+.pill.solid:hover { background: #3aa0ff; border-color: #3aa0ff; }
+.pill.big { height: 40px; padding: 0 20px; font-size: 15px; }
+.pill svg { width: 14px; height: 14px; fill: currentColor; }
+
+/* hero */
+.hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: calc(var(--nav) + 40px) 22px 60px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink2); margin: 0 0 14px; }
+.hero h1 { font-family: var(--display); font-size: clamp(40px, 7.4vw, 96px); font-weight: 800; line-height: 1.04; letter-spacing: -0.04em; margin: 0; max-width: 1100px; }
+.hero .sub { font-size: clamp(17px, 2vw, 24px); color: var(--ink2); margin: 26px auto 0; max-width: 780px; }
+.authors { margin-top: 34px; font-size: 16px; color: var(--ink); }
+.authors span { white-space: nowrap; }
+.affil { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.hero .links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; width: 100%; max-width: var(--maxw); margin-top: 70px; }
+.stat { text-align: left; border-top: 1px solid var(--line); padding-top: 16px; }
+.stat .n { font-family: var(--display); font-size: clamp(30px, 4vw, 48px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.stat .n small { font-size: 0.45em; font-weight: 700; color: var(--ink2); margin-left: 3px; letter-spacing: 0; }
+.stat .l { font-size: 13px; color: var(--ink2); margin-top: 8px; }
+
+/* sections */
+.sec { max-width: var(--maxw); margin: 0 auto; padding: 150px 22px 0; }
+.claim { font-family: var(--display); font-size: clamp(38px, 6vw, 74px); font-weight: 800; line-height: 1.06; letter-spacing: -0.035em; margin: 0 0 24px; }
+.claim.mid { font-size: clamp(32px, 4.6vw, 56px); margin-bottom: 16px; }
+.subhead { font-family: var(--display); font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; letter-spacing: -0.015em; margin: 90px 0 18px; }
+.lede { font-size: clamp(18px, 2vw, 22px); color: var(--ink2); max-width: 800px; margin: 0 0 40px; }
+.body { font-size: 17px; color: var(--ink2); max-width: 820px; margin: 0 0 20px; }
+.body strong { color: var(--ink); font-weight: 600; }
+.fine { font-size: 13px; color: var(--muted); margin: 14px 0 0; max-width: 820px; }
+.cta { margin-top: 26px; font-size: 19px; }
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(.2,.7,.2,1); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* media */
+.media { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 22px; background: var(--card); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.media video, .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
+.ph svg { width: 40px; height: 40px; fill: none; stroke: #3a3a3d; stroke-width: 1.5; }
+.ph code { font-family: var(--mono); font-size: 12px; color: #48484a; }
+.teaser { margin-top: 60px; width: 100%; max-width: var(--maxw); }
+figcaption { font-size: 14px; color: var(--ink2); margin-top: 10px; text-align: left; }
+figcaption small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+figure { margin: 0; }
+.videos { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.videos.three { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.videos.three .media { border-radius: 14px; }
+.cmp-head { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0 10px; }
+.cmp-head p { margin: 0; font: 700 17px var(--display); color: var(--ink2); }
+.cmp-head p.ours { color: var(--ink); }
+
+/* architecture */
+.arch { background: var(--card); border-radius: 22px; padding: 26px 24px 18px; overflow-x: auto; }
+.arch svg { width: 100%; min-width: 760px; height: auto; display: block; }
+.arch text { font-family: "Inter", sans-serif; }
+
+/* cards */
+.feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.feat > div { background: var(--card); border-radius: 22px; padding: 24px 24px 26px; }
+.feat .k { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+.feat h4 { font-size: 19px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
+.feat p { margin: 0; font-size: 14.5px; color: var(--ink2); }
+.feat .rate { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 18px 0 0; }
+.k.b { color: var(--accent); } .k.v { color: var(--violet); } .k.p { color: var(--pink); }
+
+/* equations */
+.eq { background: var(--card); border-radius: 22px; padding: 22px 26px; margin: 0 0 16px; overflow-x: auto; color: var(--ink); }
+.eq .katex-display { margin: 0.4em 0; }
+.eq .lab { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* matrix */
+.matrix { overflow-x: auto; }
+.matrix table { border-collapse: collapse; width: 100%; min-width: 700px; font-size: 14px; }
+.matrix th, .matrix td { padding: 13px 8px; border-bottom: 1px solid var(--line); text-align: center; color: var(--ink2); }
+.matrix th { font-size: 12px; font-weight: 600; color: var(--muted); vertical-align: bottom; line-height: 1.3; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; color: var(--ink); font-weight: 500; padding-left: 0; min-width: 260px; }
+.matrix td { font-size: 18px; }
+.matrix td.y { color: var(--green); } .matrix td.p { color: var(--ink); } .matrix td.n { color: var(--muted); }
+.matrix td.v { font-size: 15px; font-variant-numeric: tabular-nums; }
+.matrix td.tbd { color: var(--orange); }
+.matrix th.ours { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; font-size: 13px; }
+.matrix td.ours { background: rgba(41,151,255,0.08); }
+
+/* tabs + code */
+.tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; background: #1d1d1f; padding: 4px; border-radius: 980px; margin-bottom: 14px; }
+.tabs button { background: none; border: 0; color: var(--ink2); font: 500 14px "Inter", sans-serif; padding: 8px 16px; border-radius: 980px; cursor: pointer; transition: background 0.2s ease, color 0.2s ease; }
+.tabs button[aria-selected="true"] { background: #f5f5f7; color: #000; }
+pre { background: var(--card); color: var(--ink); border-radius: 18px; padding: 22px 24px; font: 13.5px/1.7 var(--mono); overflow-x: auto; margin: 0; }
+pre .cm { color: var(--muted); } pre .kw { color: #ff7ab2; } pre .st { color: #9ad3ff; }
+pre[hidden] { display: none; }
+.feat.small { margin-top: 16px; }
+.feat.small > div { padding: 20px 22px; }
+.feat.small h4 { font-size: 16px; }
+
+/* faq, cite, notes */
+details { border-bottom: 1px solid var(--line); padding: 20px 0; }
+details:first-of-type { border-top: 1px solid var(--line); }
+summary { font-size: 19px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 20px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; color: var(--ink2); font-weight: 400; font-size: 24px; line-height: 1; transition: transform 0.25s ease; }
+details[open] summary::after { transform: rotate(45deg); }
+details p { font-size: 16px; color: var(--ink2); max-width: 820px; margin: 12px 0 0; }
+.cite { position: relative; }
+.cite pre { color: var(--ink2); padding-right: 90px; }
+.copy { position: absolute; top: 14px; right: 14px; }
+.notes { max-width: var(--maxw); margin: 150px auto 0; padding: 26px 22px 30px; border-top: 1px solid var(--line); }
+.notes ol { padding-left: 18px; margin: 0; }
+.notes li { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+footer { max-width: var(--maxw); margin: 0 auto; padding: 18px 22px 60px; font-size: 12px; color: var(--muted); border-top: 1px solid #1d1d1f; }
+
+@media (max-width: 860px) {
+  .navlinks { display: none; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .feat, .two, .videos, .videos.three { grid-template-columns: 1fr; }
+  .sec { padding-top: 110px; }
+}
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<!-- ====================================================================================
+     Before publishing: replace every element marked class="tbd" and every video
+     placeholder (.ph) with real results. Videos go in docs/assets/ (see README in that folder).
+     ==================================================================================== -->
+
+<nav class="topnav">
+  <a class="brand" href="#top">WBC-MPC</a>
+  <div class="navright">
+    <div class="navlinks">
+      <a href="#idea">Idea</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#code">Code</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="navcta">
+      <a class="pill" href="assets/paper.pdf">Paper</a>
+      <a class="pill solid" href="https://github.com/OWNER/g1_wbc_mpc">Code</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <p class="eyebrow">Unitree G1 · 23 DoF · MuJoCo</p>
+  <h1>Plan the <span class="grad">whole body</span>.<br>Execute on the measured state.</h1>
+  <p class="sub">A whole-body nonlinear MPC plans contact wrenches and joint accelerations on the full rigid-body dynamics. A contact-consistent whole-body controller re-projects that plan onto the robot&rsquo;s measured state at 500&nbsp;Hz.</p>
+  <div class="authors">
+    <span>Author One<sup>1</sup></span>, &nbsp;<span>Author Two<sup>1</sup></span>, &nbsp;<span>Author Three<sup>2</sup></span>
+  </div>
+  <div class="affil"><sup>1</sup>Affiliation One &nbsp;&nbsp; <sup>2</sup>Affiliation Two</div>
+  <div class="links">
+    <a class="pill big" href="assets/paper.pdf"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper</a>
+    <a class="pill big" href="https://arxiv.org/abs/XXXX.XXXXX">arXiv</a>
+    <a class="pill big solid" href="https://github.com/OWNER/g1_wbc_mpc"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.66 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Code</a>
+    <a class="pill big" href="#video">Video</a>
+  </div>
+
+  <div class="stats reveal">
+    <div class="stat"><div class="n">60<small>Hz</small></div><div class="l">whole-body NMPC, one SQP iteration per cycle</div></div>
+    <div class="stat"><div class="n">1.1<small>s</small></div><div class="l">prediction horizon, 32 shooting nodes</div></div>
+    <div class="stat"><div class="n">500<small>Hz</small></div><div class="l">contact-consistent WBC on the measured state</div></div>
+    <div class="stat"><div class="n">58<small>/35</small></div><div class="l">state / input dimension of the MPC</div></div>
+  </div>
+
+  <figure class="teaser reveal" id="video">
+    <div class="media">
+      <!-- <video src="assets/teaser.mp4" poster="assets/teaser.jpg" autoplay muted loop playsinline></video> -->
+      <div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>Teaser video<code>assets/teaser.mp4</code></div>
+    </div>
+    <figcaption>G1 walking with the whole-body MPC and the contact-consistent WBC. <small>MuJoCo, real-time playback.</small></figcaption>
+  </figure>
+</header>
+
+<!-- ============================== IDEA ============================== -->
+<section class="sec" id="idea">
+  <p class="eyebrow reveal">The problem</p>
+  <h2 class="claim reveal">A reduced plan<br>leaves the <span class="grad">WBC to repair it</span>.</h2>
+  <p class="lede reveal">The standard pipeline plans on a single rigid body and asks a whole-body controller to make it real. The plan never sees the swing leg, the arms, or a torque limit.</p>
+  <p class="body reveal">On a humanoid whose limbs carry a large share of the mass, the swing leg and the arms generate angular momentum that a single-rigid-body plan does not contain. The whole-body controller then tracks forces and accelerations that the real body may not be able to produce. It can redistribute the contact wrench inside the support polygon the plan already fixed, but it cannot anticipate.</p>
+  <p class="body reveal">We move the full rigid-body dynamics into the MPC. The plan is then <strong>dynamically consistent by construction</strong>, and the WBC gets a different job: not repairing a reduced plan, but re-projecting a consistent one onto the state the robot is actually in.</p>
+
+  <h3 class="subhead reveal">One loop, two rates.</h3>
+  <div class="arch reveal">
+    <svg viewBox="0 0 980 270" role="img" aria-label="Architecture: velocity command, reference and gait manager, whole-body NMPC at 60 Hz, contact-consistent WBC at 500 Hz, Unitree G1; measured state feeds back to all three blocks.">
+      <defs>
+        <linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#2997ff"/><stop offset="1" stop-color="#8f6bff"/></linearGradient>
+        <linearGradient id="gp" x1="0" x2="1"><stop offset="0" stop-color="#8f6bff"/><stop offset="1" stop-color="#ff6ec7"/></linearGradient>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6e6e73"/></marker>
+      </defs>
+      <g font-size="13" fill="#a1a1a6">
+        <rect x="0" y="40" width="130" height="78" rx="14" fill="#1d1d1f"/>
+        <text x="65" y="74" text-anchor="middle" fill="#f5f5f7" font-weight="600">Velocity</text>
+        <text x="65" y="93" text-anchor="middle">command</text>
+
+        <rect x="170" y="40" width="170" height="78" rx="14" fill="#1d1d1f" stroke="#ff9f0a" stroke-opacity="0.5"/>
+        <text x="255" y="68" text-anchor="middle" fill="#f5f5f7" font-weight="600">Reference &amp; gait</text>
+        <text x="255" y="87" text-anchor="middle">contact schedule,</text>
+        <text x="255" y="103" text-anchor="middle">push-triggered steps</text>
+
+        <rect x="390" y="30" width="200" height="98" rx="16" fill="#111113" stroke="url(#gb)" stroke-width="1.5"/>
+        <text x="490" y="62" text-anchor="middle" fill="#f5f5f7" font-weight="700" font-size="15">Whole-body NMPC</text>
+        <text x="490" y="82" text-anchor="middle">full rigid-body dynamics</text>
+        <text x="490" y="100" text-anchor="middle">RTI-SQP · HPIPM</text>
+        <text x="490" y="118" text-anchor="middle" fill="#2997ff" font-weight="600">60 Hz</text>
+
+        <rect x="640" y="30" width="200" height="98" rx="16" fill="#111113" stroke="url(#gp)" stroke-width="1.5"/>
+        <text x="740" y="62" text-anchor="middle" fill="#f5f5f7" font-weight="700" font-size="15">Contact-consistent WBC</text>
+        <text x="740" y="82" text-anchor="middle">QP on the measured state</text>
+        <text x="740" y="100" text-anchor="middle">EoM · friction · CoP · torque</text>
+        <text x="740" y="118" text-anchor="middle" fill="#ff6ec7" font-weight="600">500 Hz</text>
+
+        <rect x="880" y="40" width="100" height="78" rx="14" fill="#1d1d1f"/>
+        <text x="930" y="74" text-anchor="middle" fill="#f5f5f7" font-weight="600">G1</text>
+        <text x="930" y="93" text-anchor="middle">MuJoCo</text>
+
+        <rect x="390" y="190" width="200" height="56" rx="14" fill="#1d1d1f"/>
+        <text x="490" y="215" text-anchor="middle" fill="#f5f5f7" font-weight="600">State estimation</text>
+        <text x="490" y="234" text-anchor="middle">q, ν, contact flags</text>
+      </g>
+      <g stroke="#6e6e73" stroke-width="1.4" fill="none" marker-end="url(#ar)">
+        <path d="M130 79H166"/>
+        <path d="M340 79H386"/>
+        <path d="M590 79H636"/>
+        <path d="M840 79H876"/>
+        <path d="M930 118V218H594"/>
+        <path d="M390 218H255V122"/>
+        <path d="M490 190V132"/>
+        <path d="M594 228H740V132"/>
+      </g>
+      <g font-size="11.5" fill="#6e6e73">
+        <text x="363" y="70" text-anchor="middle">x<tspan dy="-4" font-size="8">ref</tspan></text>
+        <text x="613" y="70" text-anchor="middle">x*, u*</text>
+        <text x="858" y="70" text-anchor="middle">τ</text>
+      </g>
+    </svg>
+  </div>
+  <p class="fine reveal">The MPC plans contact wrenches and joint accelerations over 1.1&nbsp;s. Between two MPC updates (16.7&nbsp;ms) and right after a push, the measured state departs from the plan; the WBC closes that gap every 2&nbsp;ms.</p>
+</section>
+
+<!-- ============================== METHOD ============================== -->
+<section class="sec" id="method">
+  <p class="eyebrow reveal">Method</p>
+  <h2 class="claim reveal">Three pieces,<br><span class="grad">one consistent model</span>.</h2>
+
+  <div class="feat reveal">
+    <div>
+      <div class="k b">Plan</div>
+      <h4>Whole-body NMPC</h4>
+      <p>Optimizes both 6-D foot wrenches and all 23 joint accelerations on the floating-base equations of motion. Stance and swing conditions are projected equalities; friction, center of pressure, joint limits and self-collision are relaxed barriers.</p>
+      <div class="rate">60&nbsp;Hz</div>
+    </div>
+    <div>
+      <div class="k v">Execute</div>
+      <h4>Contact-consistent WBC</h4>
+      <p>Finds the smallest correction to the planned acceleration and wrench that satisfies the full equations of motion, friction, CoP and torque limits at the <em>measured</em> state. Returns the plan exactly when the robot is on it.</p>
+      <div class="rate">500&nbsp;Hz</div>
+    </div>
+    <div>
+      <div class="k p">React</div>
+      <h4>Momentum-triggered stepping</h4>
+      <p>A supervisor watches the centroidal momentum and its rate and inserts steps into the contact schedule. Where to step, and how to use the waist and arms, is left to the MPC.</p>
+      <div class="rate">event</div>
+    </div>
+  </div>
+
+  <h3 class="subhead reveal">The plan: torques eliminated, limb momentum kept.</h3>
+  <p class="body reveal">Joint accelerations are inputs; the six unactuated rows of the equations of motion give the base acceleration. Those rows <em>are</em> the centroidal dynamics, including the term through which the waist and arms move the base<sup><a href="#fn1" id="r1">1</a></sup>.</p>
+  <div class="eq reveal">
+    <div class="lab">Prediction model</div>
+    $$\dot{\boldsymbol\nu}_b=\mathbf M_{bb}^{-1}\Big(\textstyle\sum_{i\in\{L,R\}}\mathbf J_{i,b}^\top\boldsymbol\lambda_i-\mathbf h_b-\underbrace{\mathbf M_{bj}\ddot{\mathbf q}_j}_{\text{limb momentum}}\Big),\qquad \mathbf x=[\mathbf q;\boldsymbol\nu]\in\mathbb R^{58},\ \ \mathbf u=[\boldsymbol\lambda_L;\boldsymbol\lambda_R;\ddot{\mathbf q}_j]\in\mathbb R^{35}$$
+  </div>
+  <div class="two reveal">
+    <div class="eq">
+      <div class="lab">Stance foot · projected equality</div>
+      $$\mathbf a_i+\mathbf K_v\mathbf v_i+\mathbf K_p\mathbf e_i=\mathbf 0$$
+    </div>
+    <div class="eq">
+      <div class="lab">Contact wrench · relaxed barrier</div>
+      $$\mu f_z\ge\|\mathbf f_{xy}\|,\quad x_{\min}f_z\le-m_y\le x_{\max}f_z$$
+    </div>
+  </div>
+  <p class="fine reveal">Direct multiple shooting, RK4, \(\Delta t=35\) ms, one Gauss&ndash;Newton SQP iteration per cycle (real-time iteration), QP solved by HPIPM. Built on OCS2 and Pinocchio with ahead-of-time CppAD code generation.</p>
+
+  <h3 class="subhead reveal">The execution: re-project, don&rsquo;t repair.</h3>
+  <p class="body reveal">Inverse dynamics of the plan is exact only on the <strong>planned</strong> state. The WBC solves a 41-variable QP on the <strong>measured</strong> state, so the torque is consistent with the body the robot is actually in, and friction, CoP and torque limits hold.</p>
+  <div class="eq reveal">
+    <div class="lab">WBC quadratic program, \(\boldsymbol\xi=[\dot{\boldsymbol\nu};\boldsymbol\lambda_L;\boldsymbol\lambda_R]\)</div>
+    $$\begin{aligned}\min_{\boldsymbol\xi}\ &\textstyle\sum_k w_k\|\mathbf A_k\dot{\boldsymbol\nu}-\mathbf b_k\|^2+\|\dot{\boldsymbol\nu}-\dot{\boldsymbol\nu}^\star\|^2_{\mathbf W_a}+\|\boldsymbol\lambda-\boldsymbol\lambda^\star\|^2_{\mathbf W_\lambda}\\[2pt]\text{s.t.}\ &\mathbf M_b\dot{\boldsymbol\nu}+\mathbf h_b=\textstyle\sum_i\mathbf J_{i,b}^\top\boldsymbol\lambda_i,\quad \mathbf J_i\dot{\boldsymbol\nu}+\dot{\mathbf J}_i\boldsymbol\nu=\mathbf a_i^{\mathrm{des}}\ (\text{stance}),\quad\boldsymbol\lambda_i=\mathbf 0\ (\text{swing}),\\ &\mathbf G\boldsymbol\lambda_i\ge\mathbf 0,\qquad |\mathbf M_j\dot{\boldsymbol\nu}+\mathbf h_j-\textstyle\sum_i\mathbf J_{i,j}^\top\boldsymbol\lambda_i|\le\boldsymbol\tau_{\max}\end{aligned}$$
+  </div>
+  <p class="fine reveal">qpOASES, hot-started between cycles. Mean solve time 55&nbsp;&micro;s on a G1-sized problem (41 variables, 57 constraints) in a synthetic benchmark<sup><a href="#fn2" id="r2">2</a></sup>.</p>
+
+  <h3 class="subhead reveal">What each pipeline can see.</h3>
+  <div class="matrix reveal">
+    <table>
+      <thead><tr><th></th><th>SRB-MPC<br>+ WBC</th><th>WB-MPC<br>+ inverse dynamics</th><th class="ours">WB-MPC + WBC<br>(ours)</th></tr></thead>
+      <tbody>
+        <tr><td>Limb momentum in the plan</td><td class="n">✗</td><td class="y">✓</td><td class="y ours">✓</td></tr>
+        <tr><td>Joint limits and self-collision in the plan</td><td class="n">✗</td><td class="y">✓</td><td class="y ours">✓</td></tr>
+        <tr><td>Hip / arm strategy under a push</td><td class="n">✗</td><td class="y">✓</td><td class="y ours">✓</td></tr>
+        <tr><td>Torque evaluated on the measured state</td><td class="y">✓</td><td class="n">✗</td><td class="y ours">✓</td></tr>
+        <tr><td>Friction and CoP enforced at the motor command</td><td class="y">✓</td><td class="p">◐</td><td class="y ours">✓</td></tr>
+        <tr><td>Joint torque limits enforced</td><td class="p">◐</td><td class="n">✗</td><td class="y ours">✓</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fine reveal">✓ by construction &nbsp; ◐ only in the plan, not after joint PD feedback, or depends on the implementation &nbsp; ✗ not modeled.</p>
+</section>
+
+<!-- ============================== RESULTS ============================== -->
+<section class="sec" id="results">
+  <p class="eyebrow reveal">Results</p>
+  <h2 class="claim reveal">Walking on the <span class="grad">full model</span>.</h2>
+  <p class="lede reveal">Forward, lateral and turning commands on flat ground, 30&nbsp;s per run. Same gait timing and the same supervisor for all controllers.</p>
+
+  <div class="videos three reveal">
+    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/walk_forward.mp4</code></div></div><figcaption>Forward <small class="tbd">[speed] m/s</small></figcaption></figure>
+    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/walk_lateral.mp4</code></div></div><figcaption>Lateral <small class="tbd">[speed] m/s</small></figcaption></figure>
+    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/walk_turn.mp4</code></div></div><figcaption>Turning <small class="tbd">[rate] rad/s</small></figcaption></figure>
+  </div>
+
+  <h3 class="subhead reveal">Steady walking.</h3>
+  <div class="matrix reveal">
+    <table>
+      <thead><tr><th>Metric</th><th>SRB-MPC<br>+ WBC</th><th>WB-MPC<br>+ ID</th><th class="ours">WB-MPC + WBC<br>(ours)</th></tr></thead>
+      <tbody>
+        <tr><td>\(v_x\) RMSE (m/s)</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>Roll / pitch RMSE (rad)</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>Min. CoP margin (%)</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>Max. friction ratio \(\|\mathbf f_{xy}\|/\mu f_z\)</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>Max. \(|\tau|/\tau_{\max}\)</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>Max. stable speed (m/s)</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="claim mid reveal" style="margin-top:130px">Pushed. <span class="grad">Whole body answers.</span></h2>
+  <p class="lede reveal">A 0.1&nbsp;s impulse on the pelvis. The supervisor inserts a step; the MPC decides where it lands and swings the waist and arms against the push before it does.</p>
+  <div class="cmp-head reveal"><p>SRB-MPC + WBC</p><p class="ours">WB-MPC + WBC (ours)</p></div>
+  <div class="videos reveal">
+    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/push_srb.mp4</code></div></div><figcaption>Same push, single-rigid-body plan. <small class="tbd">[force] N, [direction]</small></figcaption></figure>
+    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/push_ours.mp4</code></div></div><figcaption>Same push, whole-body plan executed by the WBC. <small class="tbd">[force] N, [direction]</small></figcaption></figure>
+  </div>
+
+  <h3 class="subhead reveal">Largest recovered push.</h3>
+  <div class="matrix reveal">
+    <table>
+      <thead><tr><th>Direction (walking)</th><th>SRB-MPC<br>+ WBC</th><th>WB-MPC<br>+ ID</th><th class="ours">WB-MPC + WBC<br>(ours)</th></tr></thead>
+      <tbody>
+        <tr><td>\(+x\) forward</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>\(-x\) backward</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>\(+y\) right-to-left</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+        <tr><td>\(-y\) left-to-right</td><td class="v tbd">TBD</td><td class="v tbd">TBD</td><td class="v tbd ours">TBD</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fine reveal">Force in newtons, 0.1&nbsp;s impulse on the pelvis, increased in 10&nbsp;N steps until a link other than the feet touches the ground.</p>
+</section>
+
+<!-- ============================== CODE ============================== -->
+<section class="sec" id="code">
+  <p class="eyebrow reveal">Code</p>
+  <h2 class="claim reveal">Build it. <span class="grad">Switch it on.</span></h2>
+  <p class="lede reveal">ROS&nbsp;2 workspace with OCS2, Pinocchio, HPIPM, qpOASES and MuJoCo. The WBC core depends only on Eigen and qpOASES and is unit-tested on its own.</p>
+
+  <div class="reveal">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="t-build">Build &amp; run</button>
+      <button role="tab" aria-selected="false" data-tab="t-wbc">Enable the WBC</button>
+      <button role="tab" aria-selected="false" data-tab="t-core">WBC core only</button>
+    </div>
+    <pre id="t-build"><span class="cm"># ROS 2 Humble, Jazzy or Lyrical</span>
+<span class="kw">source</span> /opt/ros/$ROS_DISTRO/setup.bash
+git clone https://github.com/OWNER/g1_wbc_mpc && <span class="kw">cd</span> g1_wbc_mpc
+sudo apt install $(sed <span class="st">"s/\${ROS_DISTRO}/$ROS_DISTRO/g"</span> dependencies.txt)
+make install-qpoases
+make build-all
+<span class="kw">source</span> install/setup.bash
+make launch-wb-g1-sim        <span class="cm"># whole-body MPC on G1 in MuJoCo</span></pre>
+    <pre id="t-wbc" hidden><span class="cm">; robot_models/unitree_g1/g1_wb_mpc/config/mpc/task.info</span>
+wbc
+{
+  enable                  true     <span class="cm">; false: inverse dynamics of the plan + joint PD</span>
+  torqueLimitScaling      1.0      <span class="cm">; fraction of the URDF effort limits</span>
+  baseTaskWeight          10.0
+  swingFootTaskWeight     10.0
+  lowLevelKd              2.0      <span class="cm">; joint damping added to the WBC torque</span>
+}</pre>
+    <pre id="t-core" hidden><span class="cm"># no ROS needed: Eigen + qpOASES</span>
+cmake -S humanoid_wbc -B build/humanoid_wbc -DQPOASES_ROOT=/usr/local
+cmake --build build/humanoid_wbc -j
+./build/humanoid_wbc/test_humanoid_wbc   <span class="cm"># 6 tests</span></pre>
+  </div>
+
+  <div class="feat small reveal">
+    <div><h4>One switch</h4><p>The same MPC runs with either executor; the baseline and the proposed controller differ by one line of configuration.</p></div>
+    <div><h4>Plain QP core</h4><p><code>humanoid_wbc</code> takes M, h, J and the plan, returns the torque. Reusable with any whole-body planner.</p></div>
+    <div><h4>Real time</h4><p>The MPC runs in its own thread; the WBC runs synchronously with the 500&nbsp;Hz control loop.</p></div>
+  </div>
+  <p class="cta reveal"><a href="https://github.com/OWNER/g1_wbc_mpc">View the repository &rsaquo;</a></p>
+</section>
+
+<!-- ============================== FAQ ============================== -->
+<section class="sec" id="faq">
+  <h2 class="claim mid reveal">Questions</h2>
+  <div class="reveal">
+    <details>
+      <summary>Why a WBC at all, if the MPC already plans on the full dynamics?</summary>
+      <p>Because the plan is computed for a state predicted up to one MPC period earlier. Inverse dynamics of that plan is exact only on the planned state; after a push the measured state can differ a lot. The WBC evaluates the equations of motion at the measured state and keeps friction, center of pressure and torque limits satisfied there. When the robot is on the plan, it returns the plan unchanged.</p>
+    </details>
+    <details>
+      <summary>How is this different from a WBC under a single-rigid-body MPC?</summary>
+      <p>That WBC also has to make up for everything the reduced model ignores: limb inertia, joint limits, torque limits. Here the plan already contains them, so the WBC corrections scale with the state mismatch, not with model error.</p>
+    </details>
+    <details>
+      <summary>Is the contact schedule optimized?</summary>
+      <p>No. Step timing comes from the gait schedule or from the momentum-triggered supervisor. The MPC optimizes where the swing foot goes, the contact wrenches, and the whole-body motion for that schedule.</p>
+    </details>
+    <details>
+      <summary>Does it run on hardware?</summary>
+      <p>The results on this page are in MuJoCo simulation. Hardware validation is future work.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ============================== CITE ============================== -->
+<section class="sec" id="cite">
+  <h2 class="claim mid reveal">Citation</h2>
+  <div class="cite reveal">
+    <button class="pill copy" id="copy">Copy</button>
+<pre id="bib">@article{wbcmpc2026,
+  title   = {Whole-Body Nonlinear {MPC} with Contact-Consistent
+             Whole-Body Control for Humanoid Locomotion},
+  author  = {Author One and Author Two and Author Three},
+  journal = {TBD},
+  year    = {2026}
+}</pre>
+  </div>
+</section>
+
+<div class="notes">
+  <ol>
+    <li id="fn1">Freezing the joints and dropping \(\mathbf M_{bj}\ddot{\mathbf q}_j\) recovers the single-rigid-body model. That term is how waist and arm motion changes the base acceleration, i.e. the hip strategy of balance. <a href="#r1">&#8617;</a></li>
+    <li id="fn2">Unit benchmark of the WBC core with random G1-sized dynamics, 2000 solves with contact switches. Timing inside the full closed loop will be reported with the experiments. <a href="#r2">&#8617;</a></li>
+  </ol>
+</div>
+
+<footer>&copy; 2026 The WBC-MPC Authors. Built on OCS2, Pinocchio, HPIPM, qpOASES and MuJoCo. Unitree G1 model by Unitree Robotics.</footer>
+
+<script>
+// reveal on scroll
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// active nav link
+const links = [...document.querySelectorAll('.navlinks a')];
+const secs = links.map(a => document.querySelector(a.getAttribute('href')));
+addEventListener('scroll', () => {
+  const y = scrollY + innerHeight * 0.35;
+  let k = -1; secs.forEach((s, i) => { if (s && s.offsetTop <= y) k = i; });
+  links.forEach((a, i) => a.classList.toggle('on', i === k));
+}, { passive: true });
+
+// tabs
+document.querySelectorAll('.tabs').forEach(t => t.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  t.querySelectorAll('button').forEach(x => { x.setAttribute('aria-selected', x === b); document.getElementById(x.dataset.tab).hidden = x !== b; });
+}));
+
+// copy bibtex
+document.getElementById('copy').addEventListener('click', e => {
+  navigator.clipboard.writeText(document.getElementById('bib').innerText).then(() => { e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy', 1500); });
+});
+</script>
+</body>
+</html>
