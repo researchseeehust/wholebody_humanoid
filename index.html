@@ -210,10 +210,9 @@ footer { max-width: var(--maxw); margin: 0 auto; padding: 18px 22px 60px; font-s
 
   <figure class="teaser reveal" id="video">
     <div class="media">
-      <!-- <video src="assets/teaser.mp4" poster="assets/teaser.jpg" autoplay muted loop playsinline></video> -->
-      <div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>Teaser video<code>assets/teaser.mp4</code></div>
+      <video src="assets/teaser.mp4" poster="assets/teaser.jpg" autoplay muted loop playsinline></video>
     </div>
-    <figcaption>G1 walking with the whole-body MPC and the contact-consistent WBC. <small>MuJoCo, real-time playback.</small></figcaption>
+    <figcaption>G1 with the whole-body MPC and the contact-consistent WBC: forward, turning while walking, lateral, backward, stop. <small>MuJoCo, real-time playback, rendered from the measured state.</small></figcaption>
   </figure>
 </header>
 
@@ -356,12 +355,13 @@ footer { max-width: var(--maxw); margin: 0 auto; padding: 18px 22px 60px; font-s
 <section class="sec" id="results">
   <p class="eyebrow reveal">Results</p>
   <h2 class="claim reveal">Walking on the <span class="grad">full model</span>.</h2>
-  <p class="lede reveal">Forward, lateral and turning commands on flat ground, 30&nbsp;s per run. Same gait timing and the same supervisor for all controllers.</p>
+  <p class="lede reveal">Forward, backward, lateral and turning commands on flat ground, with the WBC in the loop. Each clip starts from standing; arms swing with the gait phase, and the feet keep a minimum lateral distance.</p>
 
-  <div class="videos three reveal">
-    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/walk_forward.mp4</code></div></div><figcaption>Forward <small class="tbd">[speed] m/s</small></figcaption></figure>
-    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/walk_lateral.mp4</code></div></div><figcaption>Lateral <small class="tbd">[speed] m/s</small></figcaption></figure>
-    <figure><div class="media"><div class="ph"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><code>assets/walk_turn.mp4</code></div></div><figcaption>Turning <small class="tbd">[rate] rad/s</small></figcaption></figure>
+  <div class="videos reveal">
+    <figure><div class="media"><video src="assets/walk_forward.mp4" poster="assets/walk_forward.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption>Forward <small>0.35 m/s average</small></figcaption></figure>
+    <figure><div class="media"><video src="assets/walk_backward.mp4" poster="assets/walk_backward.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption>Backward <small>0.20 m/s average</small></figcaption></figure>
+    <figure><div class="media"><video src="assets/walk_lateral.mp4" poster="assets/walk_lateral.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption>Lateral, left then right <small>0.07 m/s average</small></figcaption></figure>
+    <figure><div class="media"><video src="assets/walk_turn.mp4" poster="assets/walk_turn.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption>Turning in place <small>0.38 rad/s, 2.4 turns without a fall</small></figcaption></figure>
   </div>
 
   <h3 class="subhead reveal">Steady walking.</h3>
@@ -417,29 +417,35 @@ footer { max-width: var(--maxw); margin: 0 auto; padding: 18px 22px 60px; font-s
     <pre id="t-build"><span class="cm"># ROS 2 Humble, Jazzy or Lyrical</span>
 <span class="kw">source</span> /opt/ros/$ROS_DISTRO/setup.bash
 git clone https://github.com/OWNER/g1_wbc_mpc && <span class="kw">cd</span> g1_wbc_mpc
-sudo apt install $(sed <span class="st">"s/\${ROS_DISTRO}/$ROS_DISTRO/g"</span> dependencies.txt)
-make install-qpoases
-make build-all
+make deps
+make qpoases
+make build
 <span class="kw">source</span> install/setup.bash
-make launch-wb-g1-sim        <span class="cm"># whole-body MPC on G1 in MuJoCo</span></pre>
-    <pre id="t-wbc" hidden><span class="cm">; robot_models/unitree_g1/g1_wb_mpc/config/mpc/task.info</span>
+make sim                    <span class="cm"># whole-body MPC on G1 in MuJoCo</span></pre>
+    <pre id="t-wbc" hidden><span class="cm">; robots/g1/g1_wbmpc_config/config/mpc/task.info</span>
 wbc
 {
-  enable                  true     <span class="cm">; false: inverse dynamics of the plan + joint PD</span>
-  torqueLimitScaling      1.0      <span class="cm">; fraction of the URDF effort limits</span>
-  baseTaskWeight          10.0
-  swingFootTaskWeight     10.0
-  lowLevelKd              2.0      <span class="cm">; joint damping added to the WBC torque</span>
+  enable                      true        <span class="cm">; false: inverse dynamics of the plan + joint PD</span>
+  type                        contact_qp  <span class="cm">; or wbic: prioritized tasks + dynamics QP</span>
+  accelerationRegularization  1e-2        <span class="cm">; keep well below the task weights</span>
+  wrenchRegularization        1e-1        <span class="cm">; keeps the wrench near the plan</span>
+  torqueLimitScaling          1.0         <span class="cm">; fraction of the URDF effort limits</span>
+  lowLevelKp                  1200.0      <span class="cm">; joint impedance around the plan,</span>
+  lowLevelKd                  10.0        <span class="cm">; added to the WBC torque</span>
+}
+collision_constraint
+{
+  minStepWidth                0.16        <span class="cm">; lateral foot distance, prevents crossed legs</span>
 }</pre>
     <pre id="t-core" hidden><span class="cm"># no ROS needed: Eigen + qpOASES</span>
-cmake -S humanoid_wbc -B build/humanoid_wbc -DQPOASES_ROOT=/usr/local
-cmake --build build/humanoid_wbc -j
-./build/humanoid_wbc/test_humanoid_wbc   <span class="cm"># 6 tests</span></pre>
+cmake -S control/contact_wbc -B /tmp/contact_wbc -DQPOASES_ROOT=/usr/local
+cmake --build /tmp/contact_wbc -j
+/tmp/contact_wbc/test_contact_wbc   <span class="cm"># 12 tests</span></pre>
   </div>
 
   <div class="feat small reveal">
     <div><h4>One switch</h4><p>The same MPC runs with either executor; the baseline and the proposed controller differ by one line of configuration.</p></div>
-    <div><h4>Plain QP core</h4><p><code>humanoid_wbc</code> takes M, h, J and the plan, returns the torque. Reusable with any whole-body planner.</p></div>
+    <div><h4>Plain QP core</h4><p><code>contact_wbc</code> takes M, h, J and the plan, returns the torque. Reusable with any whole-body planner.</p></div>
     <div><h4>Real time</h4><p>The MPC runs in its own thread; the WBC runs synchronously with the 500&nbsp;Hz control loop.</p></div>
   </div>
   <p class="cta reveal"><a href="https://github.com/OWNER/g1_wbc_mpc">View the repository &rsaquo;</a></p>

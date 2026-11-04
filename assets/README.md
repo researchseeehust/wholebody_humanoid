@@ -8,9 +8,10 @@ Replace each placeholder `<div class="ph">...</div>` in `index.html` with the co
 |---|---|
 | `paper.pdf` | Paper |
 | `teaser.mp4`, `teaser.jpg` | Teaser video and poster frame (16:9) |
-| `walk_forward.mp4` | Forward walking |
-| `walk_lateral.mp4` | Lateral walking |
-| `walk_turn.mp4` | Turning in place |
+| `walk_forward.mp4`, `walk_forward.jpg` | Forward walking |
+| `walk_backward.mp4`, `walk_backward.jpg` | Backward walking |
+| `walk_lateral.mp4`, `walk_lateral.jpg` | Lateral walking |
+| `walk_turn.mp4`, `walk_turn.jpg` | Turning in place |
 | `push_srb.mp4` | Push, SRB-MPC + WBC baseline |
 | `push_ours.mp4` | Same push, WB-MPC + WBC |
 
