@@ -49,7 +49,12 @@ sup a { color: var(--muted); font-size: 0.62em; margin-left: 2px; }
 .pill svg { width: 14px; height: 14px; fill: currentColor; }
 
 /* hero */
-.hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: calc(var(--nav) + 40px) 22px 60px; }
+.hero { position: relative; isolation: isolate; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: calc(var(--nav) + 40px) 22px 60px; }
+.hero-bg { position: absolute; top: 0; left: 0; right: 0; height: 100vh; z-index: -1; overflow: hidden; pointer-events: none; }
+.hero-bg video { width: 100%; height: 100%; object-fit: cover; filter: blur(7px) brightness(0.5) saturate(0.85); transform: scale(1.08); }
+.hero-bg::after { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.6) 75%),
+              linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 55%, #000 100%); }
 .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink2); margin: 0 0 14px; }
 .hero h1 { font-family: var(--display); font-size: clamp(40px, 7.4vw, 96px); font-weight: 800; line-height: 1.04; letter-spacing: -0.04em; margin: 0; max-width: 1100px; }
 .hero .sub { font-size: clamp(17px, 2vw, 24px); color: var(--ink2); margin: 26px auto 0; max-width: 780px; }
@@ -159,7 +164,7 @@ footer { max-width: var(--maxw); margin: 0 auto; padding: 18px 22px 60px; font-s
   .feat, .two, .videos, .videos.three { grid-template-columns: 1fr; }
   .sec { padding-top: 110px; }
 }
-@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } .hero-bg video { display: none; } }
 </style>
 </head>
 <body>
@@ -187,6 +192,7 @@ footer { max-width: var(--maxw); margin: 0 auto; padding: 18px 22px 60px; font-s
 </nav>
 
 <header class="hero" id="top">
+  <div class="hero-bg" aria-hidden="true"><video src="assets/hero_bg.mp4" poster="assets/hero_bg.jpg" autoplay muted loop playsinline></video></div>
   <p class="eyebrow">Unitree G1 · 23 DoF · MuJoCo</p>
   <h1>Plan the <span class="grad">whole body</span>.<br>Execute on the measured state.</h1>
   <p class="sub">A whole-body nonlinear MPC plans contact wrenches and joint accelerations on the full rigid-body dynamics. A contact-consistent whole-body controller re-projects that plan onto the robot&rsquo;s measured state at 500&nbsp;Hz.</p>

@@ -8,6 +8,7 @@ Replace each placeholder `<div class="ph">...</div>` in `index.html` with the co
 |---|---|
 | `paper.pdf` | Paper |
 | `teaser.mp4`, `teaser.jpg` | Teaser video and poster frame (16:9) |
+| `hero_bg.mp4`, `hero_bg.jpg` | Blurred background clip behind the title |
 | `walk_forward.mp4`, `walk_forward.jpg` | Forward walking |
 | `walk_backward.mp4`, `walk_backward.jpg` | Backward walking |
 | `walk_lateral.mp4`, `walk_lateral.jpg` | Lateral walking |
