@@ -193,6 +193,17 @@ footer { padding: 28px var(--pad) 56px; font-size: 13px; color: var(--muted); }
   .scroll-cue { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } .hero-bg video { display: none; } }
+
+/* backflip */
+.speed { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 99px; background: #fff; margin: 0 0 14px; }
+.speed button { border: 0; background: transparent; height: 28px; padding: 0 14px; border-radius: 99px; font: 700 13px/1 "Inter", sans-serif; color: var(--ink2); cursor: pointer; }
+.speed button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.flip-main { max-width: none !important; }
+.phases { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; max-width: none !important; margin-top: 22px; }
+.phases figure .media { aspect-ratio: 56 / 50; border-radius: 16px; }
+.phases figcaption b { color: var(--accent-ink); margin-right: 6px; }
+.feat.four { grid-template-columns: repeat(4, 1fr); margin-top: 8px; }
+@media (max-width: 860px) { .phases { grid-template-columns: repeat(3, 1fr); } .feat.four { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -211,6 +222,7 @@ footer { padding: 28px var(--pad) 56px; font-size: 13px; color: var(--muted); }
       <a href="#idea">Idea</a>
       <a href="#method">Method</a>
       <a href="#results">Results</a>
+      <a href="#flip">Backflip</a>
       <a href="#code">Code</a>
       <a href="#faq">FAQ</a>
     </div>
@@ -446,9 +458,67 @@ footer { padding: 28px var(--pad) 56px; font-size: 13px; color: var(--muted); }
   <p class="fine reveal">Force in newtons, 0.1&nbsp;s impulse on the pelvis, increased in 10&nbsp;N steps until a link other than the feet touches the ground.</p>
 </section>
 
+<!-- ============================================================ BACKFLIP -->
+<section class="sec soft" id="flip">
+  <p class="eyebrow reveal">04 &middot; Backflip</p>
+  <h2 class="claim reveal">Same model, <span class="grad">one full turn</span>.</h2>
+  <p class="lede reveal">A standing backflip of the G1 without learning. An offline whole-body trajectory optimization plans the flip on the same model as the MPC; the online whole-body MPC tracks it at 60&nbsp;Hz through push-off, flight and landing, and the measured touchdown hands the robot back to the stance controller.</p>
+
+  <div class="flip-main reveal">
+    <div class="speed" role="group" aria-label="Playback speed">
+      <button type="button" aria-pressed="true" data-src="assets/backflip.mp4" data-poster="assets/backflip.jpg">1&times;</button>
+      <button type="button" aria-pressed="false" data-src="assets/backflip_slow.mp4" data-poster="assets/backflip_slow.jpg">&frac14;&times;</button>
+    </div>
+    <figure><div class="media"><video id="flip-video" src="assets/backflip.mp4" poster="assets/backflip.jpg" autoplay muted loop playsinline preload="metadata"></video></div>
+      <figcaption>MuJoCo, G1 with rotor inertia and joint damping, ground friction 1.0. Online WB-MPC in the loop from the first crouch to standing. <small>&frac14;&times;: push-off to touchdown slowed down four times.</small></figcaption></figure>
+  </div>
+
+  <div class="phases reveal">
+    <figure><div class="media"><img src="assets/bf_phase1.jpg" alt="Crouch" loading="lazy"></div><figcaption><b>A</b>Crouch <small>arms swing up</small></figcaption></figure>
+    <figure><div class="media"><img src="assets/bf_phase2.jpg" alt="Push-off" loading="lazy"></div><figcaption><b>B</b>Push-off <small>feet leave the ground</small></figcaption></figure>
+    <figure><div class="media"><img src="assets/bf_phase3.jpg" alt="Tuck while inverted" loading="lazy"></div><figcaption><b>C</b>Tuck <small>inertia shaped in flight</small></figcaption></figure>
+    <figure><div class="media"><img src="assets/bf_phase4.jpg" alt="Touchdown" loading="lazy"></div><figcaption><b>D</b>Touchdown <small>contact ends the maneuver</small></figcaption></figure>
+    <figure><div class="media"><img src="assets/bf_phase5.jpg" alt="Standing" loading="lazy"></div><figcaption><b>E</b>Stand <small>stance controller</small></figcaption></figure>
+  </div>
+
+  <div class="stats reveal" style="margin-top:56px">
+    <div class="stat"><div class="n">2&pi;<small>rad</small></div><div class="l">Pitch rotation, landed upright</div></div>
+    <div class="stat"><div class="n">0.47<small>s</small></div><div class="l">Time in the air</div></div>
+    <div class="stat"><div class="n">&gt;14<small>rad/s</small></div><div class="l">Pitch rate in the tuck</div></div>
+    <div class="stat"><div class="n">60<small>Hz</small></div><div class="l">Whole-body MPC through the flight</div></div>
+  </div>
+
+  <h3 class="subhead reveal">From keyframes to a landed flip.</h3>
+  <div class="feat four reveal">
+    <div>
+      <div class="k b">A &middot; Keyframes</div>
+      <h4>Initial guess</h4>
+      <p>Crouch, push-off, ballistic flight with tuck, landing. Only a guess and a reference for the optimizer.</p>
+    </div>
+    <div>
+      <div class="k b">B &middot; Offline TO</div>
+      <h4>Whole-body plan</h4>
+      <p>The MPC's optimal control problem solved to convergence: full rigid-body dynamics, contact and friction, torque limits from inverse dynamics, self-collision. Multiple shooting, RK4, 10&nbsp;ms.</p>
+    </div>
+    <div>
+      <div class="k v">C &middot; Online MPC</div>
+      <h4>Tracking with feedback</h4>
+      <p>A maneuver-tracking cost follows the plan; the swing feet are free in flight. ZXY Euler angles make the pitch unbounded, so a full turn is &minus;2&pi;, not a wrap-around.</p>
+      <div class="rate">60&nbsp;Hz</div>
+    </div>
+    <div>
+      <div class="k p">D &middot; Landing</div>
+      <h4>Contact-triggered</h4>
+      <p>The measured touchdown, not the clock, ends the maneuver. The stance controller absorbs the impact and stands the robot up.</p>
+      <div class="rate">event</div>
+    </div>
+  </div>
+  <p class="fine reveal">Work in progress. The flip lands in 3 of 7 test conditions (start time 2&ndash;6&nbsp;s, ground friction 0.8&ndash;1.0). In simulation the online push-off delivers about 75&nbsp;% of the planned take-off momentum, so the robot lands early and under-rotated; closing this gap is ongoing.</p>
+</section>
+
 <!-- ============================== CODE ============================== -->
-<section class="sec soft" id="code">
-  <p class="eyebrow reveal">04 &middot; Code</p>
+<section class="sec" id="code">
+  <p class="eyebrow reveal">05 &middot; Code</p>
   <h2 class="claim reveal">Build it. <span class="grad">Switch it on.</span></h2>
   <p class="lede reveal">ROS&nbsp;2 workspace with OCS2, Pinocchio, HPIPM, qpOASES and MuJoCo. The WBC core depends only on Eigen and qpOASES and is unit-tested on its own.</p>
 
@@ -496,8 +566,8 @@ cmake --build /tmp/contact_wbc -j
 </section>
 
 <!-- ============================== FAQ ============================== -->
-<section class="sec" id="faq">
-  <p class="eyebrow reveal">05 &middot; FAQ</p>
+<section class="sec soft" id="faq">
+  <p class="eyebrow reveal">06 &middot; FAQ</p>
   <h2 class="claim mid reveal">Questions</h2>
   <div class="reveal">
     <details>
@@ -520,8 +590,8 @@ cmake --build /tmp/contact_wbc -j
 </section>
 
 <!-- ============================== CITE ============================== -->
-<section class="sec soft" id="cite">
-  <p class="eyebrow reveal">06 &middot; Citation</p>
+<section class="sec" id="cite">
+  <p class="eyebrow reveal">07 &middot; Citation</p>
   <h2 class="claim mid reveal">Citation</h2>
   <div class="cite reveal">
     <button class="pill copy" id="copy">Copy</button>
@@ -574,6 +644,14 @@ addEventListener('scroll', () => {
 document.querySelectorAll('.tabs').forEach(t => t.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   t.querySelectorAll('button').forEach(x => { x.setAttribute('aria-selected', x === b); document.getElementById(x.dataset.tab).hidden = x !== b; });
+}));
+
+// backflip playback speed
+document.querySelectorAll('.speed').forEach(g => g.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const v = document.getElementById('flip-video');
+  g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  v.poster = b.dataset.poster; v.src = b.dataset.src; v.play().catch(() => {});
 }));
 
 // copy bibtex
